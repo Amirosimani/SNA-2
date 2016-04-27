@@ -1,0 +1,190 @@
+---
+title: "Lab report 2"
+author: "Amir Imani - ai2335"
+date: "27 April 2016"
+output: pdf_document
+---
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+library(igraph)
+library(stringdist)
+library(dplyr)
+
+### 1. importing data ----
+edge_classification <- read.csv('edge_list.csv', sep = ",")
+edge_classification$X <- NULL
+
+classified <- edge_classification[ is.na(edge_classification$reason),]
+classified <- classified[c(1,2)]
+
+unclassified <- edge_classification[ !is.na(edge_classification$reason),]
+unclassified <- unclassified[c(1,2)]
+
+### 2. create adjacency matrix ----
+graphized <- function(x){
+  mat <- as.matrix(get.adjacency(graph.edgelist(as.matrix(x), directed=T)))
+  graph <- graph.adjacency(mat,mode="directed", weighted = TRUE)
+  return(graph)
+}
+
+graph_classified <- graphized(classified)
+graph_unclassified <- graphized(unclassified)
+
+### 3. overall topography of the network ----
+topo <- function(x){
+  nodes <- vcount(x)
+  edges <- ecount(x)
+  density <- graph.density(x, loops = T)
+  
+  topo <- data.frame(nodes,edges,density)
+  return(topo)
+}
+
+topo_classified <- topo(graph_classified)
+topo_unclassified <- topo(graph_unclassified)
+
+### 4. centrality measures ----
+
+cntrlty_measures <- function(x){
+  inDegreeC <- degree(x, mode="in", loops = TRUE, normalized = FALSE)
+  outDegreeC <- degree(x, mode="out", loops = TRUE, normalized = FALSE)
+  totalDegreeC <- degree(x)
+  inClosenessC <- closeness(graph_classified, mode='in')
+  outClosenessC <- closeness(graph_classified, mode='out')
+  totalClosenessC <- closeness(graph_classified)
+  betweennessC <- betweenness(graph_classified, directed = T)
+  eigenC <- evcent(graph_classified)
+  
+  s <- data.frame(inDegreeC, outDegreeC, totalDegreeC, inClosenessC, outClosenessC, totalClosenessC, betweennessC, eigenC)
+  s = s[,c(1:8)]
+  
+  return(s)
+}
+
+centrality_classified <- cntrlty_measures(graph_classified)
+centrality_classified <- centrality_classified[order(-centrality_classified$totalDegreeC),]
+
+inDegreeU <- degree(graph_unclassified, mode="in", loops = TRUE, normalized = FALSE)
+outDegreeU <- degree(graph_unclassified, mode="out", loops = TRUE, normalized = FALSE)
+totalDegreeU <- degree(graph_unclassified)
+inClosenessU <- closeness(graph_unclassified, mode='in')
+outClosenessU <- closeness(graph_unclassified, mode='out')
+totalClosenessU <- closeness(graph_unclassified)
+betweennessU <- betweenness(graph_unclassified, directed = T)
+eigenU <- evcent(graph_unclassified)
+
+centrality_unclassified <- data.frame(inDegreeU, outDegreeU, totalDegreeU, inClosenessU, outClosenessU, totalClosenessU, betweennessU, eigenU)
+centrality_unclassified = centrality_unclassified[,c(1:8)]
+centrality_unclassified <-centrality_unclassified[order(-centrality_unclassified$totalDegreeU),]
+
+corClassified <- cor(centrality_classified)
+corUn <- cor(centrality_unclassified)
+```
+
+> **Describe the social network(s) to me, in terms of how it was collected, what it represents and so forth. Also give me basic topography of the network: the nature of the ties; direction of ties; overall density; and if attributes are with the network, the distribution of the categories and variables of those attributes.**
+
+I have downloaded the publicly available dataset of Hillary’s emails. It is a SQL file containing more than 41K emails. Each row, is an email containing the body of email in addition to meta data such as sender, recipents, classification (image 1). 
+\begin{center}
+\includegraphics{/Users/Amiros/Desktop/sql.png}
+image 1- Initial data
+\end{center}
+
+For the purpose of this lab, I wanted to construct the Hillary's correspondence network. To do so, I extracted senders and receivers to use as a directed edge list using patterns in the data set and regular expressions. After having a dataframe with two columns of "sender" and "receivers", I cleaned the data more by removing special characters, white spaces, etc.
+
+An interesting challenge of this process was entity resolution as not only there were a lot of typos in email addresses (for example 'Jake Sullivan' was typed 'Lake Sullivan') and  there were  variation of one name (like 'Human Abedin' and 'Abedin Huma'), but also single persons had different names (for example H, HRD, HClinton, etc for Hillary). To address that, I carried entity resolution using  Levenshtein distance for similarity between words, and also decision trees for a higher resolution.
+
+After cleaning up the data frame, there were more than 20,000 names. Therefore, I decided to construct the network based on the top 100 names with the highest number of emails (aggregated by both sent and received). Also in the case the more than one person was in the recipients field, I picked only the first one assuming that the first one in the list is more important in the communication.
+
+Finally, I subset the data based on if the email was classified or not to create two seperate networks calling them 'classified' and 'unclassified' graphs. Ties in both networks are directed and denote if node A has sent an email to node B.
+
+Basic topography of both networks are shown below.
+
+
+Network          | Number of Nodes | Number of Edges | Density
+---------------- | ----------------|-----------------|-------------- 
+**Classified**   | 1236            | 1947            | 0.001274468
+**Unclassified** | 195             | 292             | 0.007679158 
+\begin{center}
+table 1. basic topography of networks
+\end{center}
+
+***
+
+> **2. Calculate degree centrality; closeness centrality; betweenness centrality; and eigenvector centrality. Correlate those measures of centrality. Highlight which nodes are most central and least central, along different dimensions.**
+
+a summary of all centrality measures is shown in the table below.
+
+```{r echo=FALSE}
+head(centrality_classified)
+```
+
+As expected, **Hillary** has the highest degree centrality. She also has the highest betweeness and eignevector centrality. These are all intuitive as it is her email network and every single email has her either as the sender or recipients. Huma Abedin( Hillary's aide), Cheryil Mills (Cheif of  staff), and Jacob Sullivan (Policy advisor) who have the highest degree after hillary also have other highest centrality measures.
+
+
+
+correlation between measures of centrality for the classified network.
+```{r echo=FALSE}
+print(corClassified)
+```
+
+***
+
+> **3b. If you don’t have a network with attribute data, then pick another network to compare your first network against. Calculate all of the same measures as above for Network #2. Consider if normalization is appropriate for any of these measures. Then state some hypothesis about why some (or all of the) measures of centrality in one network will be the same or different from the second network. Explain why you think these two networks should be similar or different.**
+
+As explained earlier, the other network I picked is the correspondance network for unclassified emails. a summary of all centrality measures is shown in the table below.
+
+```{r echo=FALSE}
+head(centrality_unclassified)
+```
+Again Hillary has the highest degree followed by the same people in the classified network.
+
+
+correlation between measures of centrality for the classified network.
+```{r echo=FALSE}
+print(corUn)
+```
+
+***
+
+> **4. In either case, when you are done above, then considers alternate specifications of your variables and codings and decisions and models. What would you want to consider changing and why. If you can, report on what are the consequences of those changes?**
+
+One observation from the previous tables is that becuase the number of emails to/from hillary is much more than the others, it skews the result for the less frequent nodes. Therefore, an alternative can be removing her from the network and calculating same centrality network measures for the remaining network.
+
+doing so, the basic network topography comparing to the previous ones will be:
+
+Network          | Number of Nodes | Number of Edges | Density
+---------------- | ----------------|-----------------|-------------- 
+**Classified**   | 1236            | 1947            | 0.001274468
+**Unclassified** | 195             | 292             | 0.007679158 
+**Hillary-less** | 732             | 1280            | 0.002388844
+
+centrality measures will also look like
+```{r echo=FALSE}
+hless <- edge_classification[(edge_classification$from!="h" & edge_classification$V1!="h"),]
+
+hless_classified <- hless[ is.na(hless$reason),]
+hless_classified <- hless_classified[c(1,2)]
+
+graph_hless <- graphized(hless_classified)
+topo_hless <- topo(graph_hless)
+
+inDegreeH <- degree(graph_hless, mode="in", loops = TRUE, normalized = FALSE)
+outDegreeH <- degree(graph_hless, mode="out", loops = TRUE, normalized = FALSE)
+totalDegreeH <- degree(graph_hless)
+inClosenessH <- closeness(graph_hless, mode='in')
+outClosenessH <- closeness(graph_hless, mode='out')
+totalClosenessH <- closeness(graph_hless)
+betweennessH <- betweenness(graph_hless, directed = T)
+eigenH <- evcent(graph_hless)
+
+centrality_hless <- data.frame(inDegreeH, outDegreeH, totalDegreeH, inClosenessH, outClosenessH, totalClosenessH, betweennessH, eigenH)
+centrality_hless = centrality_hless[,c(1:8)]
+centrality_hless <- centrality_hless[order(-centrality_hless$totalDegreeH),]
+
+corLess <- cor(centrality_hless)
+
+head(centrality_hless)
+```
+
+Another interesting measure in this context is number and size of cliques. with Hillary in the network, it will be a large clique with 1236 nodes in it. However, removing her from the network, there is 732 clique with 6 nodes as the largest and ofcourse all of them include Cheryl Mills, Huma Abedin, and Jake Sullivan.
+It worth exploring more who are the members of each clique and what is their association.

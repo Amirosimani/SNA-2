@@ -113,3 +113,31 @@ centrality_unclassified = centrality_unclassified[,c(1:8)]
 corClassified <- cor(centrality_classified)
 corUn <- cor(centrality_unclassified)
 
+### 5. Hillary-less ----
+hless <- edge_classification[(edge_classification$from!="h" & edge_classification$V1!="h"),]
+
+hless_classified <- hless[ is.na(hless$reason),]
+hless_classified <- hless_classified[c(1,2)]
+
+graph_hless <- graphized(hless_classified)
+topo_hless <- topo(graph_hless)
+
+centrality_hless <- cntrlty_measures()
+
+inDegreeH <- degree(graph_hless, mode="in", loops = TRUE, normalized = FALSE)
+outDegreeH <- degree(graph_hless, mode="out", loops = TRUE, normalized = FALSE)
+totalDegreeH <- degree(graph_hless)
+inClosenessH <- closeness(graph_hless, mode='in')
+outClosenessH <- closeness(graph_hless, mode='out')
+totalClosenessH <- closeness(graph_hless)
+betweennessH <- betweenness(graph_hless, directed = T)
+eigenH <- evcent(graph_hless)
+
+centrality_hless <- data.frame(inDegreeH, outDegreeH, totalDegreeH, inClosenessH, outClosenessH, totalClosenessH, betweennessH, eigenH)
+centrality_hless = centrality_hless[,c(1:8)]
+centrality_hless <- centrality_hless[order(-centrality_hless$totalDegreeH),]
+
+corLess <- cor(centrality_hless)
+cliques_hless <- cliques(graph_hless, min = 6)
+largest_cliques(graph_hless)
+largest_cliques(graph_classified)
