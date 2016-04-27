@@ -2,7 +2,7 @@ library(igraph)
 library(stringdist)
 library(dplyr)
 
-### ent resolution ----
+### 0. ent resolution ----
 #similarity index
 simmilarity_index <- function(x, y){
   
@@ -38,7 +38,7 @@ for (i in 1:nrow(node_names)){
 
 write.csv(edge_list, file = "edge_list.csv")
 
-### importing data ----
+### 1. importing data ----
 #  Import  edge list with classifications
 edge_classification <- read.csv('edge_list.csv', sep = ",")
 edge_classification$X <- NULL
@@ -50,36 +50,50 @@ classified <- classified[c(1,2)]
 unclassified <- edge_classification[ !is.na(edge_classification$reason),]
 unclassified <- unclassified[c(1,2)]
 
-### creat adjacency matrix ----
-mat_classified <- as.matrix(get.adjacency(graph.edgelist(as.matrix(classified), directed=T)))
-mat_unclassified <- as.matrix(get.adjacency(graph.edgelist(as.matrix(unclassified), directed=T)))
+### 2. create adjacency matrix ----
+graphized <- function(x){
+  mat <- as.matrix(get.adjacency(graph.edgelist(as.matrix(x), directed=T)))
+  graph <- graph.adjacency(mat,mode="directed", weighted = TRUE)
+  return(graph)
+}
 
-# Create igraph object from this matrix
-graph_classified <- graph.adjacency(mat_classified,mode="directed", weighted = TRUE)
-graph_unclassified <- graph.adjacency(mat_unclassified,mode="directed", weighted = TRUE)
-
+graph_classified <- graphized(classified)
+graph_unclassified <- graphized(unclassified)
 #node_names <- as.data.frame(V(hillary_graph)$name)
 
-### overall topography of the network ----
-vcount(hillary_graph)
-ecount(hillary_graph)
+### 3. overall topography of the network ----
+topo <- function(x){
+  nodes <- vcount(x)
+  edges <- ecount(x)
+  density <- graph.density(x, loops = T)
+  
+  topo <- data.frame(nodes,edges,density)
+  return(topo)
+}
 
-graph.density(hillary_graph, loops=T)
+topo_classified <- topo(graph_classified)
+topo_unclassified <- topo(graph_unclassified)
 
-### centrality measures ----
-#for classified network "turn it to a function"
-inDegreeC <- degree(graph_classified, mode="in", loops = TRUE, normalized = FALSE)
-outDegreeC <- degree(graph_classified, mode="out", loops = TRUE, normalized = FALSE)
-totalDegreeC <- degree(graph_classified)
-inClosenessC <- closeness(graph_classified, mode='in')
-outClosenessC <- closeness(graph_classified, mode='out')
-totalClosenessC <- closeness(graph_classified)
-betweennessC <- betweenness(graph_classified, directed = T)
-eigenC <- evcent(graph_classified)
-bonC <- bonpow(graph_classified)
+### 4. centrality measures ----
 
-sumC <- data.frame(inDegreeC, outDegreeC, totalDegreeC, inClosenessC, outClosenessC, totalClosenessC, betweennessC, bonC, eigenC)
-sumC = sumC[,c(1:9)]
+cntrlty_measures <- function(x){
+  inDegreeC <- degree(x, mode="in", loops = TRUE, normalized = FALSE)
+  outDegreeC <- degree(x, mode="out", loops = TRUE, normalized = FALSE)
+  totalDegreeC <- degree(x)
+  inClosenessC <- closeness(graph_classified, mode='in')
+  outClosenessC <- closeness(graph_classified, mode='out')
+  totalClosenessC <- closeness(graph_classified)
+  betweennessC <- betweenness(graph_classified, directed = T)
+  eigenC <- evcent(graph_classified)
+  #bonC <- bonpow(graph_classified)
+  
+  s <- data.frame(inDegreeC, outDegreeC, totalDegreeC, inClosenessC, outClosenessC, totalClosenessC, betweennessC, eigenC)
+  s = s[,c(1:8)]
+  
+  return(s)
+}
+
+centrality_classified <- cntrlty_measures(graph_classified)
 
 #for unclassified network
 inDegreeU <- degree(graph_unclassified, mode="in", loops = TRUE, normalized = FALSE)
@@ -90,11 +104,12 @@ outClosenessU <- closeness(graph_unclassified, mode='out')
 totalClosenessU <- closeness(graph_unclassified)
 betweennessU <- betweenness(graph_unclassified, directed = T)
 eigenU <- evcent(graph_unclassified)
-bonU <- bonpow(graph_unclassified)
+#bonU <- bonpow(graph_unclassified)
 
-sumU <- data.frame(inDegreeU, outDegreeU, totalDegreeU, inClosenessU, outClosenessU, totalClosenessU, betweennessU, eigenU)
-sumU = sumU[,c(1:9)]
+centrality_unclassified <- data.frame(inDegreeU, outDegreeU, totalDegreeU, inClosenessU, outClosenessU, totalClosenessU, betweennessU, eigenU)
+centrality_unclassified = centrality_unclassified[,c(1:8)]
 
 # correlate the measures
-corrC <- cor(sumC)
-corrU <- cor(sumU)
+corClassified <- cor(centrality_classified)
+corUn <- cor(centrality_unclassified)
+
