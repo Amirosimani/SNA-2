@@ -141,3 +141,11 @@ corLess <- cor(centrality_hless)
 cliques_hless <- cliques(graph_hless, min = 6)
 largest_cliques(graph_hless)
 largest_cliques(graph_classified)
+
+### 6. plotting----
+
+layout1 <- layout.fruchterman.reingold(graph_hless)
+
+plot(graph_hless, 
+     layout=layout1, 
+     edge.arrow.size=.1)
