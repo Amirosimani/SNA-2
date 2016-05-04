@@ -149,3 +149,24 @@ layout1 <- layout.fruchterman.reingold(graph_hless)
 plot(graph_hless, 
      layout=layout1, 
      edge.arrow.size=.1)
+
+### 7. Lab3 
+
+fgn = edge.betweenness.community (graph_hless, directed = TRUE, edge.betweenness = TRUE, merges = TRUE,
+                                  bridges = TRUE, modularity = TRUE, membership = TRUE)  ## run Girvan-Newman partitioning
+plot(fgn, graph_hless)
+
+fwt <- walktrap.community(graph_hless, steps=200,modularity=TRUE) # , labels=TRUE)  ## run random walk partitioning
+plot(fwt, graph_hless)
+
+## compare these methods to each other 
+
+compare(fgn, fwt, method= c("nmi"))
+compare(fgn, fwt, method= c("rand"))
+compare(fgn, fwt, method= c("adjusted.rand"))
+
+girvan = data.frame(fgn$membership)
+rw = data.frame(fwt$membership)
+traits = V(graph_hless)$name
+
+fb <- cbind(traits,girvan, rw)
