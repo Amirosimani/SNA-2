@@ -176,14 +176,14 @@ filter.on.degree <- function(matrixY, x) {
   cleaned_matrix <- as.matrix(newdata)
 }
 
-filtered.graph <- filter.on.degree(mat, 10)
+filtered.graph <- filter.on.degree(mat, 15)
 g2 <- graph.adjacency(filtered.graph, weighted=T, mode = "directed")
 
 
 fgn = edge.betweenness.community (g2, directed = TRUE, edge.betweenness = TRUE, merges = TRUE,
                                   bridges = TRUE, modularity = TRUE, membership = TRUE)  ## run Girvan-Newman partitioning
 
-fwt <- walktrap.community(g2, steps=10,modularity=TRUE) # , labels=TRUE)  ## run random walk partitioning
+fwt <- walktrap.community(g2, steps=25,modularity=TRUE) # , labels=TRUE)  ## run random walk partitioning
 
 ## compare these methods to each other 
 compare(fgn, fwt, method= c("nmi"))
@@ -192,15 +192,25 @@ compare(fgn, fwt, method= c("adjusted.rand"))
 
 girvan = data.frame(fgn$membership)
 rw = data.frame(fwt$membership)
-traits = V(graph_hless)$name
+traits = V(g2)$name
 
 fb <- cbind(traits,girvan, rw)
+write.table(fb, file = "memberships.csv")
+            
+V(g2)$degree <- degree(g2)
+V(g2)$size= 15
 
+E(g2)$color <- "grey"
 
 pdf("fgn.pdf")
-plot(fgn, graph_hless)
+plot(fgn, g2,  edge.arrow.size=0.2,
+     vertex.label.cex = 0.5)
 dev.off()
 
 pdf("fwt.pdf")
-plot(fwt, graph_hless)
+plot(fwt, g2, edge.arrow.size=0.2,
+     vertex.label.cex = 0.5, vertex.color = "grey")
 dev.off()
+
+
+topo(g2)
