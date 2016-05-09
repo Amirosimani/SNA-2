@@ -2,6 +2,12 @@ library(igraph)
 library(stringdist)
 library(dplyr)
 
+graphized <- function(x){
+  mat <- as.matrix(get.adjacency(graph.edgelist(as.matrix(x), directed=T)))
+  graph <- graph.adjacency(mat,mode="directed", weighted = TRUE)
+  return(graph)
+}
+
 ### 0. ent resolution ----
 #similarity index
 simmilarity_index <- function(x, y){
@@ -51,12 +57,6 @@ unclassified <- edge_classification[ !is.na(edge_classification$reason),]
 unclassified <- unclassified[c(1,2)]
 
 ### 2. create adjacency matrix ----
-graphized <- function(x){
-  mat <- as.matrix(get.adjacency(graph.edgelist(as.matrix(x), directed=T)))
-  graph <- graph.adjacency(mat,mode="directed", weighted = TRUE)
-  return(graph)
-}
-
 graph_classified <- graphized(classified)
 graph_unclassified <- graphized(unclassified)
 #node_names <- as.data.frame(V(hillary_graph)$name)
@@ -142,6 +142,8 @@ cliques_hless <- cliques(graph_hless, min = 6)
 largest_cliques(graph_hless)
 largest_cliques(graph_classified)
 
+write.csv(hless, file = "hless.csv")
+
 ### 6. plotting----
 
 layout1 <- layout.fruchterman.reingold(graph_hless)
@@ -150,17 +152,40 @@ plot(graph_hless,
      layout=layout1, 
      edge.arrow.size=.1)
 
-### 7. Lab3 
+### 7. Lab3 ----
+hless <- read.csv('hless.csv', sep = ",")
+hless$X <- NULL
+hless$reason <- NULL
 
-fgn = edge.betweenness.community (graph_hless, directed = TRUE, edge.betweenness = TRUE, merges = TRUE,
+mat <- as.matrix(get.adjacency(graph.edgelist(as.matrix(hless), directed=T)))
+hless <- graph.adjacency(mat,mode="directed", weighted = TRUE)
+
+#filter on degree
+filter.on.degree <- function(matrixY, x) {
+  #finding nodes name based on the required degree
+  a <- as.data.frame(degree(hless))
+  colnames(a) <- c("deg")
+  a2 <- subset(a, deg > x)
+  a2 <- cbind(Row.Names = rownames(a2), a2)
+  
+  newdata <- as.data.frame(matrixY)
+  newdata <- cbind(Row.Names = rownames(newdata), newdata)
+  newdata <- newdata[newdata$Row.Names %in% a2$Row.Names, ]
+  newdata <- newdata[ , which(names(newdata) %in% a2$Row.Names)]
+  
+  cleaned_matrix <- as.matrix(newdata)
+}
+
+filtered.graph <- filter.on.degree(mat, 10)
+g2 <- graph.adjacency(filtered.graph, weighted=T, mode = "directed")
+
+
+fgn = edge.betweenness.community (g2, directed = TRUE, edge.betweenness = TRUE, merges = TRUE,
                                   bridges = TRUE, modularity = TRUE, membership = TRUE)  ## run Girvan-Newman partitioning
-plot(fgn, graph_hless)
 
-fwt <- walktrap.community(graph_hless, steps=200,modularity=TRUE) # , labels=TRUE)  ## run random walk partitioning
-plot(fwt, graph_hless)
+fwt <- walktrap.community(g2, steps=10,modularity=TRUE) # , labels=TRUE)  ## run random walk partitioning
 
 ## compare these methods to each other 
-
 compare(fgn, fwt, method= c("nmi"))
 compare(fgn, fwt, method= c("rand"))
 compare(fgn, fwt, method= c("adjusted.rand"))
@@ -170,3 +195,12 @@ rw = data.frame(fwt$membership)
 traits = V(graph_hless)$name
 
 fb <- cbind(traits,girvan, rw)
+
+
+pdf("fgn.pdf")
+plot(fgn, graph_hless)
+dev.off()
+
+pdf("fwt.pdf")
+plot(fwt, graph_hless)
+dev.off()
